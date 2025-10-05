@@ -47,7 +47,7 @@ async def create_meeting(
 
     return meeting
 
-@app.get("/meetings/{id}", response_model=schemas.MeetingDetailsResponse)
+@app.get("/meetings/{id}",response_model=schemas.MeetingDetailsResponse)
 def get_meeting_details(id: int, db: Session = Depends(get_db)):
     """
     GET /meetings/:id endpoint:
@@ -56,6 +56,7 @@ def get_meeting_details(id: int, db: Session = Depends(get_db)):
     db_meeting = crud.get_meeting(db, meeting_id=id)
     if db_meeting is None:
         raise HTTPException(status_code=404, detail="Meeting not found")
+    
     response_data = schemas.MeetingDetailsResponse(
         id=db_meeting.id,
         filename=db_meeting.filename,
@@ -63,9 +64,7 @@ def get_meeting_details(id: int, db: Session = Depends(get_db)):
         summary=db_meeting.summary,
         action_items=db_meeting.action_items,
         failure_reason=db_meeting.failure_reason,
-        transcript_segments=db_meeting.transcript.get("segments") if db_meeting.transcript else None
+        transcript=db_meeting.transcript.get("segments") if db_meeting.transcript else None        
     )
-    # --- END OF FIX ---
 
     return response_data
-
