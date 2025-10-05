@@ -1,7 +1,8 @@
 import os
 from openai import AzureOpenAI
 from dotenv import load_dotenv
-
+from llm import chatClient
+import json
 
 load_dotenv()
 whisper_endpoint = os.getenv("WHYSPER_ENDPOINT")
@@ -42,6 +43,46 @@ def transcribe_audio(file_path: str) -> dict:
     except Exception as e:
         print(f"An error occurred during transcription: {e}")
         raise
+    
+#summarize the transcript
+def transcript_summarize(transcript_text: str) -> dict:
+    """
+    This function summarize the text into Agenda, Decisions and Risks using the chat model
+    """
+    
+    system_prompt = """
+    You are a professional meeting assistant. Your task is to analyze the provided meeting transcript and summarize it.
+    The output MUST be a valid JSON object with three keys: "agenda", "decisions", and "risks".
+    - "agenda": Provide a concise list of the main topics discussed.
+    - "decisions": List all concrete decisions that were made.
+    - "risks": List any potential risks or issues that were raised during the meeting.
+    Do not include any text or formatting outside of the JSON object.
+    """
+    
+    try:
+        response = chatClient.chat.completions.create(
+        messages=[
+            {
+                "role": "system",
+                "content": system_prompt,
+            },
+            {
+                "role": "user",
+                "content": transcript_text,
+            }
+        ],
+        response_format={"type": "json_object"},
+        max_tokens=4096,
+        temperature=0.0,
+        top_p=1.0,
+        model=os.getenv('DEPLOYMENT'),
+    )
+        summary = response.choices[0].message.content
+        return json.loads(summary)
+    
+    except Exception as e:
+        print(f"An error occurred during summarization: {e}")
+        raise
 
 
 if __name__ == "__main__":
@@ -53,14 +94,12 @@ if __name__ == "__main__":
         print("Please add an audio file there to run this test.")
     else:
         transcription_result = transcribe_audio(sample_file_path)
-        print("\n--- Transcription Complete ---")
-        print(f"Duration: {transcription_result['duration']} seconds")
-        print("Full Text:", transcription_result['text'])
+        # print("\n--- Segments ---")
+        # for segment in transcription_result['segments']:
+        #     start_time = round(segment['start'], 2)
+        #     end_time = round(segment['end'], 2)
+        #     text = segment['text']
+        #     print(f"[{start_time}s -> {end_time}s] {text}")
         
-        print("\n--- Segments ---")
-        for segment in transcription_result['segments']:
-            start_time = round(segment['start'], 2)
-            end_time = round(segment['end'], 2)
-            text = segment['text']
-            print(f"[{start_time}s -> {end_time}s] {text}")
-    
+        print(transcript_summarize(transcription_result['text']))
+        
